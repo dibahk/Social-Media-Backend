@@ -28,4 +28,6 @@ def create_posts(post: Post):
     return {"data": post_dict}
     # title str, content str, category 
 @app.get("/posts/{id}") #getting a specific post the id is a path parameter
-def get_post()
+def get_post(id):
+    print(id)
+    return {"post_detail": f"here is post {id}"}
