@@ -27,7 +27,13 @@ def create_posts(post: Post):
     my_posts.append(post_dict)
     return {"data": post_dict}
     # title str, content str, category 
+
+def find_post(id):
+    for p  in my_posts:
+        if p["ID"] == id:
+            return p
+
 @app.get("/posts/{id}") #getting a specific post the id is a path parameter
-def get_post(id):
-    print(id)
-    return {"post_detail": f"here is post {id}"}
+def get_post(id: int):
+    post = find_post(int(id))
+    return {"post_detail": post}
