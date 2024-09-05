@@ -43,10 +43,12 @@ def get_posts():
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
 def create_posts(post: Post):
-    post_dict = post.dict()
-    post_dict["ID"] = randrange(0, 10000000) #every id should be unique
-    my_posts.append(post_dict)
-    return {"data": post_dict}
+    # 
+    cursor.execute("""INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING *""", 
+                   (post.title, post.content, post.published))
+    new_post = cursor.fetchone()
+    conn.commit()
+    return {"data": new_post}
     # title str, content str, category 
 
 def find_post(id):
@@ -61,22 +63,23 @@ def get_latest():
 
 @app.get("/posts/{id}") #getting a specific post the id is a path parameter
 def get_post(id: int, response: Response):
-    post = find_post(int(id))
+    cursor.execute("""SELECT * FROM posts WHERE ID = %s """, (str(id)))
+    post = cursor.fetchone()
     if not post: #if we don't find a post
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail= f"post with id: {id} not found")
-    #     response.status_code = status.HTTP_404_NOT_FOUND
-    #     return {"message": f"post with id: {id} was not found"}
     return {"post_detail": post}
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int):
-    # deleting the post
-    index = find_post_index(id)
-    if not index:
+    cursor.execute("""DELETE FROM posts WHERE id = %s RETURNING *""", (str(id),))
+    deleted_post = cursor.fetchone()
+    conn.commit()
+
+    if deleted_post == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail= f"post with id : {id} was not found")
-    my_posts.pop(index)
+
     return Response(status_code=status.HTTP_204_NO_CONTENT) # for deleting no message should be sent back
 
 @app.put("/posts/{id}")
