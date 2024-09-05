@@ -1,13 +1,18 @@
 from typing import Optional
-from fastapi import FastAPI, Response, status, HTTPException
+from fastapi import FastAPI, Response, status, HTTPException, Depends
 from fastapi.params import Body
 from pydantic import BaseModel
-from random import randrange
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
+from . import models
+from .database import engine, get_db
+from sqlalchemy.orm import Session
+
+models.Base.metadata.create_all(bind= engine)
 
 app = FastAPI()
+
 while True:
     try:
         conn = psycopg2.connect(host= 'localhost', database= 'fastAPI database', user= 'postgres', password= 'diba1379', cursor_factory=RealDictCursor) #readdictcursor gonna give the column names.
@@ -34,6 +39,12 @@ def find_post_index(id):
 @app.get("/")
 async def root():
     return {"message": "welcome to my API222"}
+
+@app.get("/sqlalchemy")
+def test_posts(db: Session = Depends(get_db)):
+    return {"status": "success"}
+
+
 @app.get("/posts")
 def get_posts():
     cursor.execute("""SELECT * FROM posts""")
