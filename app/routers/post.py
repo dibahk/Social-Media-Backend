@@ -3,19 +3,30 @@ from .. import models, schemas, oauth2
 from ..database import engine, get_db
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from sqlalchemy import func
 
 router = APIRouter(prefix= '/posts',
                    tags= ['posts'])
 
 
-@router.get("/", response_model= List[schemas.Post])
-def get_posts(db: Session = Depends(get_db), current_user: int= Depends(oauth2.get_current_user), limit: int= 10, skip: int=2, search: Optional[str]= ''):
+@router.get("/", response_model= List[schemas.PostOut])
+# @router.get("/")
+def get_posts(db: Session = Depends(get_db), current_user: int= Depends(oauth2.get_current_user), limit: int= 10, skip: int=0, search: Optional[str]= ''):
     # # raw SQL
     # cursor.execute("""SELECT * FROM posts""")
     # posts = cursor.fetchall()
 
-    posts = db.query(models.Post).filter(models.Post.owner_id == current_user.id).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all() #grabbing every entery in post table
-    return posts
+
+    posts = db.query(models.Post, func.count(models.Vote.post_id).label("votes")).join(
+        models.Vote, models.Vote.post_id == models.Post.id, isouter=True).group_by(models.Post.id).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all()
+    # results = db.query(models.Post, func.count(models.Vote.post_id).label("votes")) \
+    #             .join(models.Vote, models.Vote.post_id == models.Post.id) \
+    #             .filter(models.Post.owner_id == current_user.id) \
+    #             .group_by(models.Post.id) \
+    #             .limit(limit) \
+    #             .offset(skip) \
+    #             .all()
+    return results
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.Post)
 def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db), current_user: int= Depends(oauth2.get_current_user)):
@@ -32,10 +43,10 @@ def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db), curren
 
         
 
-@router.get("/{id}", response_model=schemas.Post) #getting a specific post the id is a path parameter
+@router.get("/{id}", response_model=schemas.PostOut) #getting a specific post the id is a path parameter
 def get_post(id: int, response: Response, db: Session = Depends(get_db), current_user: int= Depends(oauth2.get_current_user)):
-    post = db.query(models.Post).filter(models.Post.id == id).first() # filter is like id
-    print(post)
+    post = db.query(models.Post, func.count(models.Vote.post_id).label("votes")).join(
+        models.Vote, models.Vote.post_id == models.Post.id, isouter=True).group_by(models.Post.id).filter(models.Post.id == id).first()
     if not post: #if we don't find a post
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail= f"post with id: {id} not found")
